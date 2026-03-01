@@ -51,6 +51,10 @@ class TestEpisodicMemory:
         """Test adding memories to Episodic memory"""
         memory = EpisodicMemory(agent=mock_agent, llm_model="provider/test_model")
 
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = json.dumps({"grade": 3})
+        memory.llm.generate = MagicMock(return_value=mock_response)
+
         # Test basic addition with observation
         memory.add_to_memory("observation", {"step": 1, "content": "Test content"})
 
@@ -62,6 +66,9 @@ class TestEpisodicMemory:
 
         # Should be empty step_content initially
         assert memory.step_content != {}
+        assert len(memory.memory_entries) == 3, (
+            "add_to_memory graded the event but never created a MemoryEntry"
+        )
 
     def test_grade_event_importance(self, mock_agent):
         """Test grading event importance"""
@@ -70,7 +77,7 @@ class TestEpisodicMemory:
         # 1. Set up a specific grade for this test
         mock_response = MagicMock()
         mock_response.choices[0].message.content = json.dumps({"grade": 5})
-        mock_agent.llm.generate.return_value = mock_response
+        memory.llm.generate = MagicMock(return_value=mock_response)
 
         # 2. Call the method
         grade = memory.grade_event_importance("observation", {"data": "critical info"})
@@ -79,7 +86,7 @@ class TestEpisodicMemory:
         assert grade == 5
 
         # 4. Assert the LLM was called correctly
-        mock_agent.llm.generate.assert_called_once()
+        memory.llm.generate.assert_called_once()
 
         # Check that the system prompt was set on the llm object
         assert memory.llm.system_prompt == memory.system_prompt
@@ -192,7 +199,7 @@ class TestEpisodicMemory:
         ]
 
         # Assigns the mock response
-        mock_agent.llm.agenerate = AsyncMock(return_value=mock_response)
+        memory.llm.agenerate = AsyncMock(return_value=mock_response)
 
         # adds content into the memory using the async counter part of add_to_memory function
         await memory.aadd_to_memory("observation", {"content": "Test content"})
@@ -201,6 +208,9 @@ class TestEpisodicMemory:
 
         # checks to ensure that step content is not empty
         assert memory.step_content != {}
+        assert len(memory.memory_entries) == 3, (
+            "aadd_to_memory graded the event but never created a MemoryEntry"
+        )
 
     def test_build_grade_prompt_no_previous_entries(self, mock_agent):
         """

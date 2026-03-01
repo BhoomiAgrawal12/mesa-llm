@@ -89,7 +89,7 @@ class EpisodicMemory(Memory):
         prompt = self._build_grade_prompt(type, content)
         self.llm.system_prompt = self.system_prompt
 
-        rsp = self.agent.llm.generate(
+        rsp = self.llm.generate(
             prompt=prompt,
             response_format=EventGrade,
         )
@@ -104,7 +104,7 @@ class EpisodicMemory(Memory):
         prompt = self._build_grade_prompt(type, content)
         self.llm.system_prompt = self.system_prompt
 
-        rsp = await self.agent.llm.agenerate(
+        rsp = await self.llm.agenerate(
             prompt=prompt,
             response_format=EventGrade,
         )
@@ -126,17 +126,38 @@ class EpisodicMemory(Memory):
 
     def add_to_memory(self, type: str, content: dict):
         """
-        Add a new memory entry to the memory
+        grading logic + Add a new memory entry to the memory
         """
-        content["importance"] = self.grade_event_importance(type, content)
+        graded_content = {
+            **content,
+            "importance": self.grade_event_importance(type, content),
+        }
+
+        new_entry = MemoryEntry(
+            agent=self.agent,
+            content={type: graded_content},
+            step=self.agent.model.steps,
+        )
+        self.memory_entries.append(new_entry)
 
         super().add_to_memory(type, content)
 
     async def aadd_to_memory(self, type: str, content: dict):
         """
-        Async version of add_to_memory
+        Async version of add_to_memory + grading logic
         """
-        content["importance"] = await self.agrade_event_importance(type, content)
+        graded_content = {
+            **content,
+            "importance": await self.agrade_event_importance(type, content),
+        }
+
+        new_entry = MemoryEntry(
+            agent=self.agent,
+            content={type: graded_content},
+            step=self.agent.model.steps,
+        )
+        self.memory_entries.append(new_entry)
+
         super().add_to_memory(type, content)
 
     def get_prompt_ready(self) -> str:
