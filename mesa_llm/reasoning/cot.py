@@ -108,7 +108,7 @@ class CoTReasoning(Reasoning):
 
         # Add current observation to memory (for record)
         self.agent.memory.add_to_memory(
-            type="Observation", content={"observation": obs_str}
+            type="Observation", content={"content": obs_str}
         )
         system_prompt = self.get_cot_system_prompt(obs)
 
@@ -120,7 +120,9 @@ class CoTReasoning(Reasoning):
         )
 
         chaining_message = rsp.choices[0].message.content
-        self.agent.memory.add_to_memory(type="Plan", content={"plan": chaining_message})
+        self.agent.memory.add_to_memory(
+            type="Plan", content={"content": chaining_message}
+        )
 
         # Pass plan content to agent for display
         if hasattr(self.agent, "_step_display_data"):
@@ -136,7 +138,7 @@ class CoTReasoning(Reasoning):
         cot_plan = Plan(step=step, llm_plan=response_message, ttl=1)
 
         self.agent.memory.add_to_memory(
-            type="Plan-Execution", content={"plan_execution": str(cot_plan)}
+            type="Plan-Execution", content={"content": str(cot_plan)}
         )
 
         return cot_plan
@@ -165,7 +167,7 @@ class CoTReasoning(Reasoning):
 
         chaining_message = rsp.choices[0].message.content
         await self.agent.memory.aadd_to_memory(
-            type="Plan", content={"plan": chaining_message}
+            type="Plan", content={"content": chaining_message}
         )
 
         # Pass plan content to agent for display
@@ -182,7 +184,7 @@ class CoTReasoning(Reasoning):
         cot_plan = Plan(step=step, llm_plan=response_message, ttl=1)
 
         await self.agent.memory.aadd_to_memory(
-            type="Plan-Execution", content={"plan_execution": str(cot_plan)}
+            type="Plan-Execution", content={"content": str(cot_plan)}
         )
 
         return cot_plan
