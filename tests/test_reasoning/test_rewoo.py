@@ -63,9 +63,10 @@ class TestReWOOReasoning:
         ]  # 3 tool calls
         reasoning.current_obs = Observation(step=1, self_state={}, local_state={})
 
-        result = reasoning.plan()
+        result = reasoning.plan(ttl=5)
 
         assert isinstance(result, Plan)
+        assert result.ttl == 5
         assert result.llm_plan.tool_calls == [mock_tool_2]  # Should get index 1 (3-2)
         assert reasoning.remaining_tool_calls == 1
         mock_agent.generate_obs.assert_not_called()
@@ -101,17 +102,28 @@ class TestReWOOReasoning:
 
         mock_agent.llm.generate.side_effect = [mock_plan_response, mock_exec_response]
 
-        reasoning = ReWOOReasoning(mock_agent)
-        reasoning.execute_tool_call = Mock(
-            return_value=Plan(step=1, llm_plan=mock_exec_response.choices[0].message)
-        )
+        def execute_with_ttl(*args, **kwargs):
+            return Plan(
+                step=1,
+                llm_plan=mock_exec_response.choices[0].message,
+                ttl=kwargs.get("ttl", 1),
+            )
 
-        result = reasoning.plan()
+        reasoning = ReWOOReasoning(mock_agent)
+        reasoning.execute_tool_call = Mock(side_effect=execute_with_ttl)
+
+        result = reasoning.plan(ttl=4)
 
         assert isinstance(result, Plan)
+        assert result.ttl == 4
         assert reasoning.remaining_tool_calls == 2
         assert reasoning.current_plan == mock_exec_response.choices[0].message
         assert reasoning.current_obs is not None
+        reasoning.execute_tool_call.assert_called_once_with(
+            "Test plan content",
+            selected_tools=None,
+            ttl=4,
+        )
         mock_agent.generate_obs.assert_called_once()
 
     def test_plan_with_custom_prompt(self):
@@ -261,9 +273,10 @@ class TestReWOOReasoning:
         reasoning.current_plan.tool_calls = [mock_tool_1, mock_tool_2]  # 2 tool calls
         reasoning.current_obs = Observation(step=1, self_state={}, local_state={})
 
-        result = asyncio.run(reasoning.aplan("test prompt"))
+        result = asyncio.run(reasoning.aplan("test prompt", ttl=6))
 
         assert isinstance(result, Plan)
+        assert result.ttl == 6
         assert result.llm_plan.tool_calls == [mock_tool_2]  # Should get index 1 (2-1)
         assert reasoning.remaining_tool_calls == 0
         mock_agent.generate_obs.assert_not_called()
@@ -301,18 +314,112 @@ class TestReWOOReasoning:
             side_effect=[mock_plan_response, mock_exec_response]
         )
 
-        reasoning = ReWOOReasoning(mock_agent)
-        reasoning.aexecute_tool_call = AsyncMock(
-            return_value=Plan(step=1, llm_plan=mock_exec_response.choices[0].message)
-        )
+        async def aexecute_with_ttl(*args, **kwargs):
+            return Plan(
+                step=1,
+                llm_plan=mock_exec_response.choices[0].message,
+                ttl=kwargs.get("ttl", 1),
+            )
 
-        result = asyncio.run(reasoning.aplan("test prompt"))
+        reasoning = ReWOOReasoning(mock_agent)
+        reasoning.aexecute_tool_call = AsyncMock(side_effect=aexecute_with_ttl)
+
+        result = asyncio.run(reasoning.aplan("test prompt", ttl=7))
 
         assert isinstance(result, Plan)
+        assert result.ttl == 7
         assert reasoning.remaining_tool_calls == 3
         assert reasoning.current_plan == mock_exec_response.choices[0].message
         assert reasoning.current_obs is not None
+        reasoning.aexecute_tool_call.assert_called_once_with(
+            "Async plan content",
+            selected_tools=None,
+            ttl=7,
+        )
         mock_agent.generate_obs.assert_called_once()
+
+    def test_plan_uses_provided_obs_without_regeneration(self):
+        """Fresh planning should use provided obs and skip generate_obs()."""
+        mock_agent = Mock()
+        mock_agent.step_prompt = "Default step prompt"
+        mock_agent.generate_obs = Mock()
+        mock_agent.memory = Mock()
+        mock_agent.memory.format_long_term.return_value = "Long term memory"
+        mock_agent.memory.format_short_term.return_value = "Short term memory"
+        mock_agent.memory.add_to_memory = Mock()
+        mock_agent.llm = Mock()
+        mock_agent.tool_manager = Mock()
+        mock_agent.tool_manager.get_all_tools_schema.return_value = {}
+
+        mock_plan_response = Mock()
+        mock_plan_response.choices = [Mock()]
+        mock_plan_response.choices[0].message.content = "Test plan content"
+        mock_exec_response = Mock()
+        mock_exec_response.choices = [Mock()]
+        mock_exec_response.choices[0].message = Mock()
+        mock_exec_response.choices[0].message.tool_calls = [Mock()]
+        mock_agent.llm.generate.side_effect = [mock_plan_response, mock_exec_response]
+
+        def execute_with_ttl(*args, **kwargs):
+            return Plan(
+                step=1,
+                llm_plan=mock_exec_response.choices[0].message,
+                ttl=kwargs.get("ttl", 1),
+            )
+
+        provided_obs = Observation(step=5, self_state={}, local_state={})
+        reasoning = ReWOOReasoning(mock_agent)
+        reasoning.execute_tool_call = Mock(side_effect=execute_with_ttl)
+
+        result = reasoning.plan(obs=provided_obs, ttl=2)
+
+        assert isinstance(result, Plan)
+        assert result.ttl == 2
+        assert reasoning.current_obs is provided_obs
+        mock_agent.generate_obs.assert_not_called()
+
+    def test_aplan_uses_provided_obs_without_regeneration(self):
+        """Async fresh planning should use provided obs and skip obs generation."""
+        mock_agent = Mock()
+        mock_agent.generate_obs = Mock()
+        mock_agent.agenerate_obs = AsyncMock()
+        mock_agent.memory = Mock()
+        mock_agent.memory.format_long_term.return_value = "Long term memory"
+        mock_agent.memory.format_short_term.return_value = "Short term memory"
+        mock_agent.memory.add_to_memory = Mock()
+        mock_agent.llm = Mock()
+        mock_agent.tool_manager = Mock()
+        mock_agent.tool_manager.get_all_tools_schema.return_value = {}
+
+        mock_plan_response = Mock()
+        mock_plan_response.choices = [Mock()]
+        mock_plan_response.choices[0].message.content = "Async plan content"
+        mock_exec_response = Mock()
+        mock_exec_response.choices = [Mock()]
+        mock_exec_response.choices[0].message = Mock()
+        mock_exec_response.choices[0].message.tool_calls = [Mock()]
+        mock_agent.llm.agenerate = AsyncMock(
+            side_effect=[mock_plan_response, mock_exec_response]
+        )
+
+        async def aexecute_with_ttl(*args, **kwargs):
+            return Plan(
+                step=1,
+                llm_plan=mock_exec_response.choices[0].message,
+                ttl=kwargs.get("ttl", 1),
+            )
+
+        provided_obs = Observation(step=6, self_state={}, local_state={})
+        reasoning = ReWOOReasoning(mock_agent)
+        reasoning.aexecute_tool_call = AsyncMock(side_effect=aexecute_with_ttl)
+
+        result = asyncio.run(reasoning.aplan("test prompt", obs=provided_obs, ttl=3))
+
+        assert isinstance(result, Plan)
+        assert result.ttl == 3
+        assert reasoning.current_obs is provided_obs
+        mock_agent.generate_obs.assert_not_called()
+        mock_agent.agenerate_obs.assert_not_called()
 
     def test_aplan_with_selected_tools(self):
         """Test aplan method with selected tools."""
@@ -471,6 +578,7 @@ class TestReWOOSignatureConsistency:
 
         result = reasoning.plan(ttl=3)
         assert isinstance(result, Plan)
+        assert result.ttl == 3
 
     def test_aplan_accepts_obs_kwarg(self):
         """aplan() must accept obs= keyword without raising TypeError."""
@@ -504,3 +612,4 @@ class TestReWOOSignatureConsistency:
 
         result = asyncio.run(reasoning.aplan("test prompt", ttl=5))
         assert isinstance(result, Plan)
+        assert result.ttl == 5
