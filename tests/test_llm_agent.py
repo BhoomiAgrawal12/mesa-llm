@@ -625,6 +625,7 @@ def test_generate_obs_with_non_llm_neighbor(monkeypatch):
 
     class PlainAgent(Agent):
         """A regular Mesa agent with NO internal_state, simulates non-LLM agents."""
+
         def step(self):
             pass
 
