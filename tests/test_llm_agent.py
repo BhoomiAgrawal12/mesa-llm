@@ -11,7 +11,8 @@ from mesa_llm import Plan
 from mesa_llm.llm_agent import LLMAgent
 from mesa_llm.memory.st_memory import ShortTermMemory
 from mesa_llm.reasoning.react import ReActReasoning
-
+from unittest.mock import AsyncMock
+from mesa.agent import Agent
 
 def test_apply_plan_adds_to_memory(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "dummy")
@@ -619,8 +620,6 @@ def test_generate_obs_with_non_llm_neighbor(monkeypatch):
     _build_observation should work when a neighbor is a plain Mesa Agent
     that has no internal_state attribute (e.g. a rule-based agent in a mixed sim).
     """
-    from mesa.agent import Agent
-
     monkeypatch.setenv("GEMINI_API_KEY", "dummy")
 
     class PlainAgent(Agent):
@@ -656,10 +655,6 @@ async def test_agenerate_obs_with_non_llm_neighbor(monkeypatch):
     """
     Async path shares _build_observation, must work for agenerate_obs().
     """
-    from unittest.mock import AsyncMock
-
-    from mesa.agent import Agent
-
     monkeypatch.setenv("GEMINI_API_KEY", "dummy")
 
     class PlainAgent(Agent):
