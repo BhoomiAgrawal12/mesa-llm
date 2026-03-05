@@ -1,8 +1,10 @@
 # tests/test_llm_agent.py
 
 import re
+from unittest.mock import AsyncMock
 
 import pytest
+from mesa.agent import Agent
 from mesa.discrete_space import OrthogonalMooreGrid
 from mesa.model import Model
 from mesa.space import ContinuousSpace, MultiGrid, SingleGrid
@@ -11,8 +13,7 @@ from mesa_llm import Plan
 from mesa_llm.llm_agent import LLMAgent
 from mesa_llm.memory.st_memory import ShortTermMemory
 from mesa_llm.reasoning.react import ReActReasoning
-from unittest.mock import AsyncMock
-from mesa.agent import Agent
+
 
 def test_apply_plan_adds_to_memory(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "dummy")
