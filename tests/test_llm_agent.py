@@ -616,7 +616,7 @@ def test_generate_obs_orthogonal_grid_branches(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# send_message / asend_message – store unique_ids, not Agent objects (#156)
+# send_message / asend_message - store unique_ids, not Agent objects (#156)
 # ---------------------------------------------------------------------------
 
 
