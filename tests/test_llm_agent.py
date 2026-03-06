@@ -1,7 +1,6 @@
 # tests/test_llm_agent.py
 
 import re
-from unittest.mock import AsyncMock
 
 import pytest
 from mesa.agent import Agent
@@ -674,7 +673,10 @@ async def test_agenerate_obs_with_non_llm_neighbor(monkeypatch):
     model.grid.place_agent(llm_agent, (2, 2))
     model.grid.place_agent(plain, (3, 3))
 
-    monkeypatch.setattr(llm_agent.memory, "aadd_to_memory", AsyncMock())
+    async def fake_aadd_to_memory(*args, **kwargs):
+        pass
+
+    monkeypatch.setattr(llm_agent.memory, "aadd_to_memory", fake_aadd_to_memory)
 
     obs = await llm_agent.agenerate_obs()
 
