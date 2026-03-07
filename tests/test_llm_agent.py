@@ -663,6 +663,8 @@ async def test_agenerate_obs_with_non_llm_neighbor(monkeypatch):
     plain_key = f"PlainAgent {plain.unique_id}"
     assert plain_key in obs.local_state
     assert obs.local_state[plain_key]["internal_state"] == []
+
+
 # ---------------------------------------------------------------------------
 # send_message / asend_message - store unique_ids, not Agent objects (#156)
 # ---------------------------------------------------------------------------
