@@ -709,7 +709,7 @@ class TestReWOOWithEpisodicMemory:
         assert len(entries) == 1
         assert entries[0].content["plan"]["content"] == plan_content
         assert entries[0].content["plan"]["importance"] == 3
-        assert memory.grade_event_importance.call_count == 1
+        assert memory.agrade_event_importance.await_count == 1
         reasoning.aexecute_tool_call.assert_awaited_once_with(
             plan_content, selected_tools=None, ttl=1
         )
