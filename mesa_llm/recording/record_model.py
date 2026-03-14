@@ -73,6 +73,14 @@ def record_model(
     original_init = cls.__init__
     original_step = getattr(cls, "step", None)
 
+    _save_callbacks: list = []
+
+    def _auto_save_all():
+        for cb in _save_callbacks:
+            cb()
+
+    atexit.register(_auto_save_all)
+
     # ----------------------------- Wrap the model's __init__ method to create and attach the recorder -----------------------------
     @wraps(original_init)
     def init_wrapper(self: "Model", *args, **kwargs):  # type: ignore[override]
@@ -91,7 +99,7 @@ def record_model(
             except Exception:  # pragma: no cover - defensive
                 logger.exception("SimulationRecorder auto-save failed")
 
-        atexit.register(_auto_save)
+        _save_callbacks.append(_auto_save)
 
     cls.__init__ = init_wrapper  # type: ignore[assignment]
 

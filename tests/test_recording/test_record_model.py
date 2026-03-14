@@ -241,6 +241,22 @@ class TestRecordModelDecorator:
         # Check that atexit.register was called
         mock_atexit.assert_called_once()
 
+    @patch("mesa_llm.recording.record_model.atexit.register")
+    def test_atexit_registered_once_for_multiple_instances(self, mock_atexit, temp_dir):
+        """Creating multiple instances should register atexit only once, not once per instance."""
+
+        @record_model(output_dir=str(temp_dir))
+        class SimpleModel(Model):
+            def __init__(self):
+                super().__init__()
+                self.steps = 0
+
+        SimpleModel()
+        SimpleModel()
+        SimpleModel()
+
+        mock_atexit.assert_called_once()
+
     def test_multiple_model_classes_independent(self, temp_dir):
         """Test that decorating multiple model classes works independently."""
 
