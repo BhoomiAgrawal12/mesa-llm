@@ -264,7 +264,10 @@ class TestRecordModelDecorator:
         def capture_register(fn):
             captured["fn"] = fn
 
-        with patch("mesa_llm.recording.record_model.atexit.register", side_effect=capture_register):
+        with patch(
+            "mesa_llm.recording.record_model.atexit.register",
+            side_effect=capture_register,
+        ):
 
             @record_model(output_dir=str(temp_dir))
             class SimpleModel(Model):
