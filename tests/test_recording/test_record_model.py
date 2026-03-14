@@ -257,6 +257,35 @@ class TestRecordModelDecorator:
 
         mock_atexit.assert_called_once()
 
+    def test_auto_save_all_saves_instances_with_events(self, temp_dir):
+        """_auto_save_all should call save_recording for instances that have events."""
+        captured = {}
+
+        def capture_register(fn):
+            captured["fn"] = fn
+
+        with patch("mesa_llm.recording.record_model.atexit.register", side_effect=capture_register):
+
+            @record_model(output_dir=str(temp_dir))
+            class SimpleModel(Model):
+                def __init__(self):
+                    super().__init__()
+                    self.steps = 0
+
+            model1 = SimpleModel()
+            model2 = SimpleModel()
+
+        model1.recorder.events = [Mock()]
+        model2.recorder.events = []
+
+        model1.save_recording = Mock()
+        model2.save_recording = Mock()
+
+        captured["fn"]()
+
+        model1.save_recording.assert_called_once()
+        model2.save_recording.assert_not_called()
+
     def test_multiple_model_classes_independent(self, temp_dir):
         """Test that decorating multiple model classes works independently."""
 
