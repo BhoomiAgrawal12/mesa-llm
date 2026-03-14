@@ -241,6 +241,9 @@ class SimulationRecorder:
         )
 
         # Record final model state
+        if any(e.event_type == "simulation_end" for e in self.events):
+            return filepath
+
         self.record_model_event(
             event_type="simulation_end",
             content={
